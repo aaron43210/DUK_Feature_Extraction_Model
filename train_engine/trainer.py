@@ -227,7 +227,7 @@ class CheckpointManager:
         # Do not save as BEST if score is NaN or 0 (unless we are at Epoch 1)
         if (torch.isnan(torch.tensor(score)) or score <= 0) and epoch > 1:
             logger.warning(
-                f"⚠️ Model score ({score:.4f}) is invalid or ZERO. "
+                f"Model score ({score:.4f}) is invalid or ZERO. "
                 "Skipping 'best.pt' save to prevent poisoning."
             )
             # We still save latest for recovery, but we mark it as suspicious
@@ -269,7 +269,7 @@ class CheckpointManager:
                 torch.save(state, best_tmp)
                 os.replace(best_tmp, best_path)
                 logger.info(
-                    f"★ New best model saved to best.pt "
+                    f"New best model saved to best.pt "
                     f"(epoch {epoch}, {self.metric_name}={score:.4f})"
                 )
                 
@@ -282,7 +282,7 @@ class CheckpointManager:
                     "epoch": epoch,
                 }
                 torch.save(inf_state, inf_path)
-                logger.info(f"⚡ Inference-ready model saved: best_inference.pt (~120MB)")
+                logger.info("Inference-ready model saved: best_inference.pt (~120MB)")
 
             except Exception as e:
                 logger.warning(f"Failed to save best checkpoint: {e}")
@@ -362,7 +362,7 @@ class Trainer:
                 torch.cuda.set_device(self.device)
 
                 logger.info(
-                    "🚀 Auto-initialized DDP process group "
+                    "Auto-initialized DDP process group "
                     "(backend=%s, %d GPUs, rank=%d)",
                     backend,
                     n_gpus,
@@ -370,7 +370,7 @@ class Trainer:
                 )
             except Exception as ddp_init_err:
                 logger.warning(
-                    "⚠️ DDP auto-init failed: %s. " "Will try DataParallel fallback.",
+                    "DDP auto-init failed: %s. Will try DataParallel fallback.",
                     ddp_init_err,
                 )
 
@@ -388,7 +388,7 @@ class Trainer:
             raw_model = nn.SyncBatchNorm.convert_sync_batchnorm(raw_model)
 
             logger.info(
-                "🚀 Activating DDP on rank %d/%d (Device: %s)",
+                "Activating DDP on rank %d/%d (Device: %s)",
                 self.rank,
                 self.world_size,
                 self.device,
@@ -408,7 +408,7 @@ class Trainer:
                 self.device = torch.device("cuda:0")
                 raw_model = raw_model.to(self.device)
                 logger.info(
-                    "🚀 DDP unavailable, using DataParallel fallback "
+                    "DDP unavailable, using DataParallel fallback "
                     "on %d GPUs (Master: %s)",
                     n_gpus,
                     self.device,
@@ -417,7 +417,7 @@ class Trainer:
                 self.is_multi_gpu = True
             except RuntimeError as dp_err:
                 logger.warning(
-                    "⚠️ DataParallel also failed: %s. " "Falling back to single GPU.",
+                    "DataParallel also failed: %s. Falling back to single GPU.",
                     dp_err,
                 )
                 self.model = raw_model
@@ -569,7 +569,7 @@ class Trainer:
                     for k in self.history:
                         if k in old_history and isinstance(old_history[k], list):
                             self.history[k] = old_history[k]
-                logger.info(f"📜 Loaded training history ({len(self.history['train_loss'])} entries)")
+                logger.info(f"Loaded training history ({len(self.history['train_loss'])} entries)")
             except Exception as e:
                 logger.warning(f"Could not load history: {e}")
 
@@ -584,12 +584,12 @@ class Trainer:
             logger.warning(f"Checkpoint not found at {path}. Starting from scratch.")
             return 1
 
-        logger.info(f"📂 Loading checkpoint: {path}")
+        logger.info(f"Loading checkpoint: {path}")
         # Map location to current device to avoid CUDA/CPU mismatches
         try:
             checkpoint = torch.load(path, map_location=self.device)
         except (EOFError, RuntimeError, Exception) as e:
-            logger.warning(f"❌ Failed to load checkpoint {path}: {e}")
+            logger.warning(f"Failed to load checkpoint {path}: {e}")
             if isinstance(e, EOFError):
                 logger.error("Checkpoint file is truncated (EOFError).")
             return 0
@@ -599,7 +599,7 @@ class Trainer:
             self.ckpt_mgr.best_score = checkpoint["best_score"]
             self.ckpt_mgr.best_epoch = checkpoint.get("epoch", 0)
             logger.info(
-                f"📈 Restored best score: {self.ckpt_mgr.best_score:.4f} "
+                f"Restored best score: {self.ckpt_mgr.best_score:.4f} "
                 f"(from epoch {self.ckpt_mgr.best_epoch})"
             )
         elif "metrics" in checkpoint and self.ckpt_mgr.metric_name in checkpoint["metrics"]:
@@ -607,7 +607,7 @@ class Trainer:
             m_name = self.ckpt_mgr.metric_name
             self.ckpt_mgr.best_score = checkpoint["metrics"][m_name]
             self.ckpt_mgr.best_epoch = checkpoint.get("epoch", 0)
-            logger.info(f"📈 Estimated best score from metrics: {self.ckpt_mgr.best_score:.4f}")
+            logger.info(f"Estimated best score from metrics: {self.ckpt_mgr.best_score:.4f}")
 
         # 2. Model State (Non-strict to allow architectural shifts/head removal)
         try:
@@ -616,9 +616,9 @@ class Trainer:
                 self.model.module.load_state_dict(model_state, strict=False)
             else:
                 self.model.load_state_dict(model_state, strict=False)
-            logger.info("✅ Model state loaded (strict=False)")
+            logger.info("Model state loaded (strict=False)")
         except Exception as e:
-            logger.error(f"❌ Failed to load model state: {e}")
+            logger.error(f"Failed to load model state: {e}")
             return 0
 
         # 3. Optimizer State
@@ -627,7 +627,7 @@ class Trainer:
                 self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             except Exception as e:
                 logger.warning(
-                    f"⚠️ Optimizer mismatch (likely due to head removal/change): {e}. "
+                    f"Optimizer mismatch (likely due to head removal/change): {e}. "
                     "Resetting optimizer state for continuing heads."
                 )
 
@@ -645,15 +645,15 @@ class Trainer:
         
         if is_completed:
             start_epoch += 1
-            logger.info(f"✅ Epoch {start_epoch-1} was complete. Resuming from NEXT epoch: {start_epoch}")
+            logger.info(f"Epoch {start_epoch-1} was complete. Resuming from NEXT epoch: {start_epoch}")
         else:
             logger.warning(
-                f"⚠️ Epoch {start_epoch} was NOT completed (crash or interruption). "
+                f"Epoch {start_epoch} was NOT completed (crash or interruption). "
                 f"Restarting from SAME epoch: {start_epoch}"
             )
         
         self.start_epoch = start_epoch
-        logger.info(f"✅ Successfully resumed from epoch {start_epoch}")
+        logger.info(f"Successfully resumed from epoch {start_epoch}")
         return start_epoch
 
     def fit(self) -> bool:
@@ -721,10 +721,10 @@ class Trainer:
                     task_str = " | ".join([f"{k}:{v}" for k, v in task_ious.items()])
 
                     logger.info(
-                        f"Epoch {epoch}/{self.config.num_epochs} │ "
-                        f"Train Loss: {train_loss:.4f} │ Val Loss: {val_loss:.4f} │ "
-                        f"Avg IoU: {avg_iou:.4f} │ Avg Dice: {avg_dice:.4f} │ "
-                        f"Roof Acc: {roof_acc:.4f} │ LR: {current_lr:.2e}"
+                        f"Epoch {epoch}/{self.config.num_epochs} | "
+                        f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
+                        f"Avg IoU: {avg_iou:.4f} | Avg Dice: {avg_dice:.4f} | "
+                        f"Roof Acc: {roof_acc:.4f} | LR: {current_lr:.2e}"
                     )
                     if task_str:
                         logger.info(f"Task IoUs: {task_str}")
@@ -882,7 +882,7 @@ class Trainer:
                 if is_bad:
                     if self.rank == 0:
                         logger.warning(
-                            f"⚠️ NaN/Inf detected at Epoch {epoch}, Batch {i}. "
+                            f"NaN/Inf detected at Epoch {epoch}, Batch {i}. "
                             "Synchronized skip activated for all GPUs."
                         )
                     self.optimizer.zero_grad(set_to_none=True)
@@ -929,7 +929,7 @@ class Trainer:
                 # Periodic logging for visibility in non-interactive terminals
                 if n_batches % 20 == 0:
                     logger.info(
-                        f"Epoch {epoch} │ Batch {n_batches}/{len(self.train_loader)} │ "
+                        f"Epoch {epoch} | Batch {n_batches}/{len(self.train_loader)} | "
                         f"Loss: {loss.item():.4f}"
                     )
 
@@ -962,7 +962,7 @@ class Trainer:
         has_nan_weights = False
         for name, param in self.model.named_parameters():
             if torch.isnan(param).any():
-                logger.error(f"🚨 WEIGHT CORRUPTION: NaN detected in {name} at end of Epoch {epoch}!")
+                logger.error(f"WEIGHT CORRUPTION: NaN detected in {name} at end of Epoch {epoch}!")
                 has_nan_weights = True
                 break
         if has_nan_weights:
@@ -982,7 +982,7 @@ class Trainer:
         n_batches = 0
 
         if self.rank == 0:
-            logger.info(f"🔍 Starting Validation Epoch {epoch}...")
+            logger.info(f"Starting Validation Epoch {epoch}...")
 
         # Optional: only show progress bar on Rank 0
         disable_tqdm = (self.rank != 0)

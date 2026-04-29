@@ -20,7 +20,7 @@ DEFAULT_SEGFORMER_MODEL = "nvidia/segformer-b4-finetuned-cityscapes-1024-1024"
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s │ %(name)-25s │ %(levelname)s │ %(message)s",
+    format="%(asctime)s | %(name)-25s | %(levelname)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("dgx_train")
@@ -100,7 +100,7 @@ def main():
         config = get_quick_test_config()
         config.train_dirs = [Path(d) for d in args.train_dirs]
         config.checkpoint_dir = Path(args.checkpoint_dir)
-        logger.info("⚡ Quick-test mode enabled")
+        logger.info("Quick-test mode enabled")
     else:
         config = TrainingConfig(
             train_dirs=[Path(d) for d in args.train_dirs],
@@ -123,7 +123,7 @@ def main():
         )
         # Handle multi_gpu flag override if requested
         if not args.multi_gpu:
-            logger.info("⚠️ Multi-GPU disabled by flag. Using single GPU.")
+            logger.info("Multi-GPU disabled by flag. Using single GPU.")
             # Just an example, we'd need a specific flag for single vs multi in
             # TrainingConfig if we wanted more control
             config.force_cpu = False
@@ -183,7 +183,7 @@ def main():
             for name in ["latest.pt", "best_latest.pt", "best.pt"]:
                 potential = Path(args.checkpoint_dir) / name
                 if potential.exists():
-                    logger.info(f"🔍 Auto-detected checkpoint for resume: {name}")
+                    logger.info(f"Auto-detected checkpoint for resume: {name}")
                     try:
                         res = trainer.load_checkpoint(str(potential))
                         if res > 0:
@@ -191,31 +191,31 @@ def main():
                             break
                     except Exception as e:
                         logger.warning(
-                            f"⚠️ Corrupted or incompatible checkpoint detected ({name}): {e}. "
+                            f"Corrupted or incompatible checkpoint detected ({name}): {e}. "
                             "Trying fallback..."
                         )
 
         if not success:
             if args.checkpoint:
                 logger.critical(
-                    f"❌ Failed to load specific checkpoint: {args.checkpoint}"
+                    f"Failed to load specific checkpoint: {args.checkpoint}"
                 )
             else:
                 logger.warning(f"No usable checkpoints found in {args.checkpoint_dir}")
-            logger.info("🚀 Starting training from scratch (Epoch 1)...")
+            logger.info("Starting training from scratch (Epoch 1)...")
 
     logger.info("Starting training on optimized GPU...")
     
     try:
         is_finished = trainer.fit()
         if is_finished:
-            logger.info(f"🎉 Training finished. Checkpoints in: {args.checkpoint_dir}")
+            logger.info(f"Training finished. Checkpoints in: {args.checkpoint_dir}")
             sys.exit(0)
         else:
-            logger.info("⏳ Epoch completed (one_epoch_only). Signaling continuation...")
+            logger.info("Epoch completed (one_epoch_only). Signaling continuation...")
             sys.exit(3)
     except Exception as e:
-        logger.critical(f"💥 Training script failed with critical error: {e}")
+        logger.critical(f"Training script failed with critical error: {e}")
         # If it crashed, we don't want to signal exit code 3 (continue)
         sys.exit(1)
 

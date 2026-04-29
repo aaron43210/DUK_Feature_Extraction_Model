@@ -78,7 +78,7 @@ def main():
     val_loss, val_iou, val_dice = trainer._validate_epoch(epoch=0)
     
     logger.info("\n" + "="*50)
-    logger.info("🏆 FINAL VALIDATION & ACCURACY REPORT 🏆")
+    logger.info("FINAL VALIDATION & ACCURACY REPORT")
     logger.info("="*50)
     logger.info(f"Overall Validation Loss: {val_loss:.4f}")
     

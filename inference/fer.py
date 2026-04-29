@@ -129,7 +129,7 @@ def time_interval(time_end, time_start):
 def CheckFileExists(filePath):
     if os.path.exists(filePath):
         return 1
-    print(f"not exut！{filePath}")
+    print(f"File not found: {filePath}")
     return 0
 
 

@@ -20,7 +20,7 @@ from inference.postprocess import refine_mask, get_threshold
 
 st.set_page_config(
     page_title="DUK — SVAMITVA Feature Extraction",
-    page_icon="🛰",
+    page_icon=None,
     layout="wide",
 )
 

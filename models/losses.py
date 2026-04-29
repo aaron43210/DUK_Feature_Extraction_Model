@@ -371,7 +371,7 @@ class MultiTaskLoss(nn.Module):
 
             # ── NaN Check per Task ──
             if torch.isnan(loss):
-                print(f"🚨 TASK NaN: '{task}' produced NaN loss!")
+                print(f"TASK NaN: '{task}' produced NaN loss!")
             
             weighted = loss * self.weights.get(task, 1.0)
             total = total + weighted
@@ -401,7 +401,7 @@ class MultiTaskLoss(nn.Module):
             rt_loss = ce_loss + self.mc_dice(rt_pred, rt_target)
 
             if torch.isnan(rt_loss):
-                print("🚨 TASK NaN: 'roof_type' produced NaN loss!")
+                print("TASK NaN: 'roof_type' produced NaN loss!")
 
             # DDP CRITICAL: Same rule, we MUST NOT hide NaNs!
             w = self.weights.get("roof_type", 0.5)
