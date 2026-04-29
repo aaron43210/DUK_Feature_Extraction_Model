@@ -2,14 +2,9 @@
 DIGITAL UNIVERSITY OF KERALA EXTRACTION MODEL (DUK-EM)
 Unified segmentation model (SegFormer encoder + UPerNet/FPN decoder).
 
-This model predicts all raster outputs directly:
-- building_mask, roof_type_mask
-- road_mask, road_centerline_mask
-- waterbody_mask, waterbody_line_mask
-- utility_line_mask
-
-YOLO-based point detections (Wells, Transformers) are integrated at 
-inference-time in `inference/predict.py`.
+Predicts all raster segmentation outputs:
+  building_mask, roof_type_mask, road_mask, road_centerline_mask,
+  waterbody_mask, waterbody_line_mask, utility_line_mask
 """
 
 import logging

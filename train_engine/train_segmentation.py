@@ -117,11 +117,9 @@ def main():
             checkpoint_dir=Path(args.checkpoint_dir),
             experiment_name=args.name,
             dropout=args.dropout,
-            sam2_checkpoint=None,
             mixed_precision=True,
             force_cpu=False,
             one_epoch_only=args.one_epoch_only,
-            cache_features=False,
         )
         # Handle multi_gpu flag override if requested
         if not args.multi_gpu:

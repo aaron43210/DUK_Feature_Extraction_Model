@@ -252,8 +252,5 @@ def create_all_heads(
     heads["waterbody_line"] = LineHead(in_channels, 64, dropout)
     heads["utility_line"] = LineHead(in_channels, 64, dropout)
 
-    # Point/Small Object heads (removed to let YOLO handle them exclusively)
-    # heads["waterbody_point"] = DetectionHead(in_channels, 64, dropout)
-    # heads["utility_point"] = DetectionHead(in_channels, 64, dropout)
 
     return heads

@@ -1,114 +1,220 @@
----
-title: SVAMITVA MAP FEATURE EXTRACTER
-emoji: 🛰️
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-sdk_version: 1.31.0
-app_file: app.py
-pinned: false
----
+# SVAMITVA Feature Extraction
+**Digital University Kerala — Hackathon Submission**
 
-# 🛰️ SVAMITVA Feature Extraction: Unified AI Pipeline
-### *Developed by Students of Digital University Kerala (DUK)*
-
-This repository contains a state-of-the-art AI solution developed for **Problem Statement 1: Feature Extraction from Drone Images**. Our pipeline is specifically designed to automate the extraction of high-precision geospatial features from SVAMITVA drone orthophotos, achieving a target accuracy of **95%**.
+Semantic segmentation pipeline for extracting geospatial features from SVAMITVA drone orthophotos. Targets buildings, roads, waterbodies, and roof-type classification at high precision using a SegFormer-B4 backbone with a UPerNet-style FPN decoder.
 
 ---
 
-## 🏆 Hackathon Solution Overview
-**Problem Statement:** Feature Extraction from Drone Images (SVAMITVA Scheme)
-**Objective:** Develop an AI model capable of identifying key features in high-resolution orthophotos with high precision, optimized for efficient processing and deployment.
+## Architecture
 
-### 🎯 Key Features Extracted
-- **Building footprint extraction**: High-precision polygonal footprints.
-- **Roof-top Classification**: Automated classification into **RCC, Tiled, Tin, and Others**.
-- **Road features**: Continuous road network extraction (Polygons & Centerlines).
-- **Waterbodies**: Accurate delineation of ponds and rivers.
-- **Point Feature Identification**: Automated localization of **Distribution Transformers and Wells**.
+```
+Input GeoTIFF / Image
+        │
+        ▼
+  Tiled Inference (512×512, 192 px overlap, Gaussian blend)
+        │
+        ▼
+  SegFormer-B4 Encoder  (nvidia/segformer-b4-finetuned-cityscapes-1024-1024)
+  Multi-scale features: S/4 · S/8 · S/16 · S/32
+        │
+        ▼
+  UPerFPN Decoder  (lateral convs → top-down fusion → CBAM → 256-ch feature map)
+        │
+   ┌────┴──────────────────────────┐
+   │   Task Heads                  │
+   │   BuildingHead  → building_mask + roof_type_mask  │
+   │   BinaryHead    → road_mask, waterbody_mask        │
+   │   LineHead      → road_centerline, waterbody_line  │
+   │   LineHead      → utility_line_mask                │
+   └───────────────────────────────┘
+        │
+        ▼
+  Post-processing  (Lovász-IoU thresholds · morphological clean-up · FER)
+        │
+        ▼
+  GeoPackage / Shapefile export (QGIS / ArcGIS ready)
+```
+
+### Encoder — SegFormer-B4
+
+Mix-Transformer backbone pre-trained on ImageNet-1K and Cityscapes. Outputs four hierarchical feature maps without positional-encoding coupling, which makes it robust to the variable ground-sampling distances found in SVAMITVA orthophotos.
+
+| Feature map | Stride | Resolution (512 input) | Channels |
+|-------------|--------|------------------------|----------|
+| feat_s1     | 4      | 128 × 128              | 64       |
+| feat_s2     | 8      | 64 × 64                | 128      |
+| feat_s3     | 16     | 32 × 32                | 320      |
+| feat_s4     | 32     | 16 × 16                | 512      |
+
+### Decoder — UPerFPN + CBAM
+
+Lateral 1×1 convolutions collapse all four encoder channels to 256. A top-down pathway propagates global context to fine-resolution maps with bilinear interpolation. A CBAM block refines both channel and spatial attention before all levels are upsampled to H/4, concatenated, and compressed back to 256 channels.
+
+### Task heads
+
+| Head         | Type        | Output                          |
+|--------------|-------------|---------------------------------|
+| BuildingHead | Shared trunk + dual 1×1 | `(B,1,H,W)` binary + `(B,5,H,W)` roof class |
+| BinaryHead   | Conv + residual skip    | `(B,1,H,W)` for roads and waterbodies |
+| LineHead     | D-LinkNet (dilated 1,2,4,8) | `(B,1,H,W)` for centrelines and utility lines |
+
+### Loss
+
+- **Lovász-Hinge** — differentiable surrogate for Jaccard/IoU; directly optimises the competition metric.
+- **Focal Loss** — down-weights easy background pixels so the model focuses on object boundaries.
+- **Boundary Loss** — Sobel-gradient penalty on mask edges to counter the "blobby" tendency of ViT decoders.
 
 ---
 
-## 🧠 Technical Architecture
+## Output layers
 
-### 1. Foundation Model Backbone
-We utilize **Segformer-B4 (Mix Transformer)** pre-trained on high-resolution ImageNet and Cityscapes datasets as our core feature extractor. Unlike traditional CNNs, this Vision Transformer natively outputs 4 scale-agnostic feature maps, making it the industry standard for complex aerial semantics like "RCC Roof" vs "Tin Roof".
-
-For a detailed breakdown of the model design, see [architecture.md](architecture.md).
-
-### 2. Multi-Head UPerFPN Decoder
-Our custom **Unified Perceptual Pyramid Network (UPerFPN)** fuses the 4 multi-scale features from the Segformer encoder using Bilinear Interpolation and CBAM (Convolutional Block Attention Module) to handle objects of drastically varying sizes.
-- **Segmentation Heads**: Binary masks for Buildings, Roads, and Waterbodies.
-- **Classification Head**: Multi-class branch for Roof Categorization.
-- **Connectivity Heads**: Dilated convolution branches for linear features (roads/pipelines).
-- **Point Detection**: Specialized heads for localized utility features.
-
-### 3. Advanced Post-Processing Pipeline
-Our export module applies research-backed geometric refinement to every extracted feature layer:
-- **Buildings**: PolyMapper-style dominant angle Orthogonalization using SamGeo Feature Edge Reconstruction (FER) for mathematically perfect square/L-shaped structures.
-- **Roads**: Morphological closing (7px kernel) to bridge tree-canopy gaps; hole filling for continuous surfaces.
-- **All Lines (Centerlines, Utilities)**: `skan`-based skeleton pruning → Chaikin corner-cutting smoothing → dead-end snapping for connected networks.
-- **Waterbodies**: Large morphological closing (9px) for smooth natural shorelines; convex hull for tiny ponds.
-- **Point Features**: YOLOv8 centroid extraction (no geometric post-processing needed).
-
-### 5. Security & Production Hardening
-- Per-class adaptive confidence thresholds (instead of global 0.5)
-- Input file size validation (10 GB limit)
-- File extension whitelist validation
-- Output filename sanitization (path traversal prevention)
-- Pinned dependency versions for reproducible builds
+| Key                    | Type        | Description                         |
+|------------------------|-------------|-------------------------------------|
+| `building_mask`        | float32 map | Building footprint probability      |
+| `roof_type_mask`       | uint8 class | 0=bg 1=RCC 2=Tiled 3=Tin 4=Others  |
+| `road_mask`            | float32 map | Road polygon probability            |
+| `road_centerline_mask` | float32 map | Road centreline probability         |
+| `waterbody_mask`       | float32 map | Waterbody polygon probability       |
+| `waterbody_line_mask`  | float32 map | Waterbody shoreline probability     |
+| `utility_line_mask`    | float32 map | Overhead utility line probability   |
 
 ---
 
-## 🚀 Efficient Processing & Deployment
+## Setup
 
-### ⚡ Optimization for Large-Scale Data
-- **MMSegmentation Patterns**: Loss functions utilizing Lovász Hinge and Online Hard Example Mining (Focal Loss) directly optimize IoU over massive orthophotos.
-- **Intelligent Tiling**: 512x512 tiling with 192px overlap to ensure NoData handling and seamless edge reconstruction.
-- **Negative Sampling Quota**: Automatically skips 99% empty tiles (farmland/forest) to focus GPU cycles on feature-rich areas.
-
-### 💻 Deployment
-A built-in **Streamlit Dashboard** (`app.py`) provides:
-- One-click processing for GeoTIFF orthophotos.
-- Real-time visualization of all 11 feature layers.
-- **GIS Export**: Direct download of vectorized `.gpkg` (GeoPackage) datasets ready for QGIS/ArcGIS.
-
----
-
-## 🛠️ Usage Guidelines
-
-### Installation
 ```bash
 git clone https://github.com/aaron43210/FEATURE.git
 cd FEATURE
 pip install -r requirements.txt
 ```
 
-### Training (Unified Pipeline)
-The `train.py` script unifies the three-stage training process into a single command, automating dataset preparation and multi-model training.
+Python 3.10+ and a CUDA GPU are required.
+
+---
+
+## Training
+
+### Single node (auto GPU)
 
 ```bash
-# Train everything (Segmentation + YOLO)
-# For 10 villages on DGX (8 GPUs), this takes ~8-12 hours
-python train.py --train_dirs ./data/villages/ --epochs 150 --batch_size 8
-
-# EMERGENCY RESUME (If DGX server crashes/restarts)
-python train.py --resume --train_dirs ./data/villages/
+python train.py \
+    --train_dirs data/MAP1 data/MAP2 ... \
+    --epochs 150 \
+    --batch_size 8
 ```
 
-**Workflow:**
-1.  **YOLO Prep**: Converts shapefile points to YOLO bounding boxes and image tiles.
-2.  **Segmentation**: Trains the Segformer+UPerFPN ensemble for buildings, roads, water, and roof types.
-3.  **YOLO Train**: Trains the YOLOv8 point detector for high-precision utility localization.
+### DGX / multi-GPU (recommended)
 
-For DGX environments, the script automatically leverages all available GPUs via DataParallel/DDP, routing data directly through the HuggingFace Segformer backbone.
+The `run_ddp.sh` script uses `torchrun` with elastic GPU discovery. It automatically detects free GPUs (>20 GB VRAM), sets DDP environment variables, and restarts on preemption.
 
-### Inference
+```bash
+bash run_ddp.sh data/MAP1 data/MAP2 ...
+```
+
+Key settings in `run_ddp.sh`:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `EPOCHS` | 150 | Total training epochs |
+| `PER_GPU_BATCH` | 12 | Batch size per GPU |
+| `WORKERS` | 2 | DataLoader workers per GPU |
+
+### Resume after crash
+
+```bash
+python train.py --resume --train_dirs data/MAP1 ...
+```
+
+The trainer saves `check/latest.pt` after every epoch and `check/best.pt` whenever validation IoU improves. The DDP loop in `run_ddp.sh` will automatically restart and resume from `latest.pt`.
+
+### Quick smoke test
+
+```bash
+python train.py --quick_test --train_dirs data/MAP1
+```
+
+Runs 3 epochs at 256×256 with batch size 2 — useful for verifying the environment before a full run.
+
+---
+
+## Checkpoints
+
+| File | Contents |
+|------|----------|
+| `check/best.pt` | Best validation IoU — use for inference |
+| `check/latest.pt` | Last completed epoch — use for resume |
+| `check/best_inference.pt` | FP16 inference-only copy (~120 MB) |
+
+---
+
+## Inference
+
+### Streamlit dashboard
+
 ```bash
 streamlit run app.py
 ```
 
+Upload a GeoTIFF or JPG/PNG, select the feature layers to extract, and click **Run Extraction**. Results are shown as colour-coded overlays. GIS export produces a ZIP of `.gpkg` or `.shp` files ready for QGIS/ArcGIS.
+
+### Programmatic
+
+```python
+import torch
+from inference.predict import load_segmentation_pipeline
+
+predictor = load_segmentation_pipeline(
+    weights_path="check/best.pt",
+    device=torch.device("cuda"),
+    tile_size=512,
+    overlap=192,
+)
+results = predictor.predict_tif("orthophoto.tif")
+# results["building_mask"]  → np.float32 probability map
+# results["roof_type_mask"] → np.uint8 class map
+```
+
 ---
 
-**Developed with ❤️ by Digital University Kerala Students**
-*Committed to advancing the SVAMITVA scheme through innovative AI/ML techniques.*
+## Repository structure
+
+```
+.
+├── app.py                          # Streamlit dashboard
+├── train.py                        # Training entry point
+├── run_ddp.sh                      # Multi-GPU DDP launcher (DGX)
+├── models/
+│   ├── model.py                    # EnsembleDUKModel (encoder + decoder + heads)
+│   ├── segformer_encoder.py        # HuggingFace SegFormer wrapper
+│   ├── decoder.py                  # UPerFPN + CBAM
+│   ├── heads.py                    # Task-specific prediction heads
+│   └── losses.py                   # Lovász + Focal + Boundary losses
+├── train_engine/
+│   ├── trainer.py                  # Training loop (AMP, DDP, early stopping)
+│   ├── config.py                   # TrainingConfig dataclass
+│   ├── metrics.py                  # IoU / Dice / Roof accuracy
+│   └── train_segmentation.py       # CLI entry point for torchrun
+├── inference/
+│   ├── predict.py                  # TiledPredictor + load_segmentation_pipeline
+│   ├── postprocess.py              # Mask refinement, FER orthogonalisation
+│   ├── export.py                   # GeoPackage / Shapefile vectorisation
+│   └── fer.py                      # Feature Edge Reconstruction
+└── scripts/
+    ├── evaluate.py                 # Standalone validation script
+    ├── calibrate_thresholds.py     # Per-class threshold search
+    └── class_balance_analysis.py   # Dataset statistics
+```
+
+---
+
+## Post-processing
+
+**Buildings** — Douglas-Peucker simplification, dominant-angle extraction, frame-field snapping to force 90° corners (Feature Edge Reconstruction). Produces clean rectangular and L-shaped footprints equivalent to PolyMapper output without requiring a separate network.
+
+**Roads** — Morphological closing (7 px kernel) to bridge canopy gaps. Centreline extracted with `skan` skeleton pruning and Chaikin corner-cutting.
+
+**Waterbodies** — Large morphological closing (9 px) for smooth shorelines; convex hull for small isolated ponds.
+
+---
+
+*Developed by students of Digital University Kerala for the SVAMITVA Feature Extraction Hackathon.*

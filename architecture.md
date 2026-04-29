@@ -15,36 +15,38 @@
 │  • Optional TTA (H-flip, V-flip)                                │
 └───────────────────────┬─────────────────────────────────────────┘
                         │
-          ┌─────────────┼──────────────┐
-          ▼             ▼              ▼
-    ┌───────────┐ ┌───────────┐  ┌──────────┐
-    │ SegFormer │ │ UPerFPN   │  │  YOLOv8  │
-    │ Backbone  │ │ Decoder   │  │ Detector │
-    │ (MixViT)  │ │  + CBAM   │  │ (Points) │
-    └─────┬─────┘ └─────┬─────┘  └─────┬────┘
-          │             │              │
-          └──────┬──────┘              │
-                 ▼                     │
-    ┌──────────────────────┐           │
-    │   9 Task Heads       │           │
-    │  (Building, Road,    │           │
-    │   Water, Utility)    │           │
-    │                      │           │
-    └──────────┬───────────┘           │
-               │                       │
-               └───────────┬───────────┘
-                           ▼
+                        │
+                        ▼
     ┌──────────────────────────────────────────┐
-    │  STAGE 2: MMSegmentation Post-Processing │
-    │  • Adaptive Thresholds                   │
-    │  • SamGeo Feature Edge Reconstruction    │
-    │  • Skeleton Pruning                      │
+    │  SegFormer-B4 Encoder (MixViT)           │
+    │  4 scale-agnostic feature maps           │
     └──────────────────┬───────────────────────┘
-                       ▼
+                       │
+                        ▼
     ┌──────────────────────────────────────────┐
-    │  STAGE 3: GIS Vectorization & Export     │
-    │  • PolyMapper-Style Orthogonalization    │
-    │  • GeoPackage (.gpkg) per layer          │
+    │  UPerFPN Decoder + CBAM                  │
+    │  Top-down fusion → 256-ch feature map    │
+    └──────────────────┬───────────────────────┘
+                       │
+                        ▼
+    ┌──────────────────────────────────────────┐
+    │  Task Heads (7 outputs)                  │
+    │  BuildingHead · BinaryHead · LineHead    │
+    └──────────────────┬───────────────────────┘
+                       │
+                        ▼
+    ┌──────────────────────────────────────────┐
+    │  Post-Processing                         │
+    │  • Adaptive per-class thresholds         │
+    │  • Feature Edge Reconstruction (FER)     │
+    │  • Skeleton pruning + Chaikin smoothing  │
+    └──────────────────┬───────────────────────┘
+                       │
+                        ▼
+    ┌──────────────────────────────────────────┐
+    │  GIS Export                              │
+    │  • GeoPackage (.gpkg) per feature layer  │
+    │  • ESRI Shapefile (.shp) option          │
     └──────────────────────────────────────────┘
 ```
 
