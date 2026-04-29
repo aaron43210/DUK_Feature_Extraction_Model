@@ -83,7 +83,7 @@ Lateral 1×1 convolutions collapse all four encoder channels to 256. A top-down 
 ## Setup
 
 ```bash
-git clone https://github.com/aaron43210/FEATURE.git
+git clone <repo-url>
 cd FEATURE
 pip install -r requirements.txt
 ```

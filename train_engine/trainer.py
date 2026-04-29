@@ -754,8 +754,6 @@ class Trainer:
 
                 if self.config.one_epoch_only:
                     logger.info("One epoch only requested. Stopping.")
-                if self.config.one_epoch_only:
-                    logger.info("One epoch only requested. Stopping.")
                     return (epoch >= self.config.num_epochs)
             return True
 

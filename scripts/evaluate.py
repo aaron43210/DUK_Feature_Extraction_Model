@@ -44,8 +44,8 @@ def main():
         val_dir=None,
         val_split=0.99, # Treat almost all as validation
         batch_size=args.batch_size,
-        img_size=cfg.tile_size,
-        overlap=cfg.tile_overlap,
+        image_size=cfg.tile_size,
+        tile_overlap=cfg.tile_overlap,
         num_workers=cfg.num_workers
     )
 
