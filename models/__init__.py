@@ -1,1 +1,1 @@
-"""Models package for SVAMITVA SAM2 feature extraction."""
+"""Models package for SVAMITVA SegFormer-B4 feature extraction."""

@@ -1,5 +1,5 @@
 """
-Training loop for DUK-EM SAM2 model.
+Training loop for DUK-EM SegFormer-B4 model.
 
 Features:
     - Mixed-precision training (AMP)

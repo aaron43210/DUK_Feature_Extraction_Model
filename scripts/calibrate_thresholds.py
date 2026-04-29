@@ -57,11 +57,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min_thr", type=float, default=0.2)
     p.add_argument("--max_thr", type=float, default=0.8)
     p.add_argument("--step", type=float, default=0.05)
-    p.add_argument("--sam2_checkpoint", default="checkpoints/sam2.1_hiera_base_plus.pt")
-    p.add_argument(
-        "--sam2_model_cfg",
-        default="configs/sam2.1/sam2.1_hiera_b+.yaml",
-    )
     p.add_argument("--out", default="checkpoints/thresholds.json")
     p.add_argument("--force_cpu", action="store_true")
     return p.parse_args()
@@ -80,8 +75,6 @@ def _device(force_cpu: bool) -> torch.device:
 def _load_model(args: argparse.Namespace, device: torch.device) -> torch.nn.Module:
     model = EnsembleSvamitvaModel(
         pretrained=True,
-        checkpoint_path=args.sam2_checkpoint,
-        model_cfg=args.sam2_model_cfg,
     ).to(device)
     ckpt_path = Path(args.checkpoint)
     if not ckpt_path.exists():

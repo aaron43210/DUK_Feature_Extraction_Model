@@ -1,1 +1,1 @@
-"""Training package for SVAMITVA SAM2 model."""
+"""Training package for SVAMITVA SegFormer-B4 model."""
