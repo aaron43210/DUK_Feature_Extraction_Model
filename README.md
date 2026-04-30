@@ -18,7 +18,7 @@ Input GeoTIFF / Image
   Multi-scale features: S/4 · S/8 · S/16 · S/32
         │
         ▼
-  UPerFPN Decoder  (lateral convs → top-down fusion → CBAM → 256-ch feature map)
+  UPerFPN Decoder (lateral convs → top-down fusion → CBAM → 256-ch feature map)
         │
    ┌────┴──────────────────────────┐
    │   Task Heads                  │
